@@ -1,2 +1,6 @@
 config:
   gcp:project: playground-430411
+  gcp:region: asia-northeast1
+  gcp:zone: asia-northeast1-a
+
+  cluster:talosVersion: v1.7.5
