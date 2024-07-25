@@ -4,6 +4,8 @@ import * as fs from 'fs'
 import * as streamPromises from 'stream/promises'
 import * as stream from 'stream'
 
+import { assetsPath } from './util'
+
 const clusterConfig = new pulumi.Config("cluster")
 
 const up = async () => {
@@ -27,7 +29,7 @@ export default up().then(res => res)
 async function ensureTalosImageAsset(bucket: gcp.storage.Bucket) {
   const talosReleaseAssetName = "gcp-amd64.raw.tar.gz";
   const talosFileName = "talos" + clusterConfig.require("talosVersion") + talosReleaseAssetName;
-  const talosFilePath = __dirname + "/assets/" + talosFileName;
+  const talosFilePath = assetsPath + talosFileName;
   const imageFileExists = fs.existsSync(talosFilePath);
 
   if (!imageFileExists) {
