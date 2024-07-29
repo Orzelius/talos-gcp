@@ -4,3 +4,4 @@ config:
   gcp:zone: asia-northeast1-a
 
   cluster:talosVersion: v1.7.5
+  cluster:name: gcp-talos
