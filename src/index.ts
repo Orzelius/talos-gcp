@@ -1,5 +1,6 @@
 import * as gcp from "@pulumi/gcp";
 import { ensureTalosImageAsset } from './image'
+import { createNetwork } from './network'
 import * as pulumi from "@pulumi/pulumi";
 
 const clusterConfig = new pulumi.Config("cluster")
@@ -10,10 +11,15 @@ const up = async () => {
   });
 
   const image = await ensureTalosImageAsset(bucket);
+  const controlTag = "controlplane"
+  const network = createNetwork(controlTag)
 
   return {
     bucket: {
       name: bucket.url,
+    },
+    network: {
+      lbIp: network.resources.LoadBalancerIP.address,
     },
     clusterCfg: clusterConfig,
   };
