@@ -1,7 +1,13 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as talos from "@pulumiverse/talos";
+import { GetConfigurationResult } from "@pulumiverse/talos/machine";
 
-export function createTalosConfig(clusterEndpoint: pulumi.Input<string>, clusterName: pulumi.Input<string>) {
+export interface MachineConfig {
+  workerCfg: pulumi.Output<GetConfigurationResult>;
+  controlplaneCfg: pulumi.Output<GetConfigurationResult>;
+}
+
+export function createTalosConfig(clusterEndpoint: pulumi.Input<string>, clusterName: pulumi.Input<string>): MachineConfig {
   const talosSecrets = new talos.machine.Secrets("secrets", {});
 
   const commonTalosOpts = {
