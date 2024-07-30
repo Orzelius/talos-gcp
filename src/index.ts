@@ -55,7 +55,11 @@ function createCompute(
           network: "default",
           accessConfigs: [{}]
         }],
-        metadata: { "user-data": isControl ? talosMachineCfg.controlplaneCfg.apply(v => v.machineConfiguration) : talosMachineCfg.workerCfg.apply(v => v.machineConfiguration) }
+        metadata: {
+          "user-data": isControl ?
+            talosMachineCfg.controlplaneCfg.apply(v => v.machineConfiguration) :
+            talosMachineCfg.workerCfg.apply(v => v.machineConfiguration)
+        }
       }),
       isControl,
       nodeName: name,
@@ -64,14 +68,17 @@ function createCompute(
 
 
   const nodes: Array<ReturnType<typeof createInstance>> = [];
-  for (let i = 0; i < parseInt(clusterConfig.require("workers")); i++) nodes.push({ ...createInstance("worker-" + i, false) });
-  for (let i = 0; i < parseInt(clusterConfig.require("controls")); i++) nodes.push({ ...createInstance("control-" + i, true) });
+  for (let i = 0; i < parseInt(clusterConfig.require("workers")); i++)
+    nodes.push({ ...createInstance("worker-" + i, false) });
+  for (let i = 0; i < parseInt(clusterConfig.require("controls")); i++)
+    nodes.push({ ...createInstance("control-" + i, true) });
 
-  nodes.filter(n => n.isControl).forEach(n => new gcp.compute.InstanceGroupMembership(n.nodeName + "-instancegroup-membership", {
-    instance: n.inst.name,
-    instanceGroup: network.resources.instanceGroup.name,
-    zone: gcp.config.zone
-  }, { dependsOn: [network.resources.tcp443FwdRule] })
+  nodes.filter(n => n.isControl).forEach(n =>
+    new gcp.compute.InstanceGroupMembership(n.nodeName + "-instancegroup-membership", {
+      instance: n.inst.name,
+      instanceGroup: network.resources.instanceGroup.name,
+      zone: gcp.config.zone
+    }, { dependsOn: [network.resources.tcp443FwdRule] })
   );
 }
 
