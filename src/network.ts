@@ -28,6 +28,7 @@ export function createNetwork(controlTag: string) {
 
   const instanceGroup = new gcp.compute.InstanceGroup("talos-ig", {
     namedPorts: [tcpPort, httpPort],
+    network: network.id,
   })
 
   const healthCheck = new gcp.compute.HealthCheck("talos-hc", {

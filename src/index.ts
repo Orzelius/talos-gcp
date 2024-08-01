@@ -52,7 +52,8 @@ function createCompute(
         tags: [isControl ? controlMachineTag : workerMachineTag],
         machineType: "e2-medium",
         networkInterfaces: [{
-          network: "default",
+          network: network.resources.network.id,
+          subnetwork: network.resources.subnet.id,
           accessConfigs: [{}]
         }],
         metadata: {
