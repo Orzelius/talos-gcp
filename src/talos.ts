@@ -7,7 +7,9 @@ export interface MachineConfig {
   controlplaneCfg: pulumi.Output<GetConfigurationResult>;
 }
 
-export function createTalosConfig(clusterEndpoint: pulumi.Input<string>, clusterName: pulumi.Input<string>): MachineConfig {
+export function createTalosConfig(
+  clusterEndpoint: pulumi.Input<string>, clusterName: pulumi.Input<string>
+): MachineConfig & { talosSecrets: talos.machine.Secrets } {
   const talosSecrets = new talos.machine.Secrets("secrets", {});
 
   const commonTalosOpts = {
@@ -23,5 +25,5 @@ export function createTalosConfig(clusterEndpoint: pulumi.Input<string>, cluster
     machineType: "worker",
     ...commonTalosOpts
   });
-  return {workerCfg, controlplaneCfg}
+  return { workerCfg, controlplaneCfg, talosSecrets }
 }
