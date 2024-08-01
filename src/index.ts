@@ -42,9 +42,18 @@ const up = async () => {
   }
 
   let talosBootstrapOutputs: ReturnType<typeof bootstrapTaloscluster> | undefined
+  let kubecfg: pulumi.Output<talos.cluster.GetKubeconfigResult> | undefined
   if (nodes.length > 0) {
     talosBootstrapOutputs = bootstrapTaloscluster()
-    talosBootstrapOutputs.talosConfig.apply(cfg => writeFileSync(repoRoot + "talosconfig", cfg))
+    talosBootstrapOutputs.talosConfig.apply(cfg => {
+      writeFileSync(repoRoot + "talosconfig", cfg)
+    })
+    const getKubecfgParams = pulumi.all([talosBootstrapOutputs.clientConfiguration, controlNodeNatIPs[0]])
+    kubecfg = getKubecfgParams.apply(async ([clinetCfg, nodeIp]) => {
+      const kubecfg = await talos.cluster.getKubeconfig({ clientConfiguration: clinetCfg, node: nodeIp })
+      writeFileSync(repoRoot + "kubeconfig", kubecfg.kubeconfigRaw)
+      return kubecfg
+    })
   }
   return {
     bucket: {
@@ -58,6 +67,7 @@ const up = async () => {
     clusterCfg: {
       clusterConfig,
       talosClientConfiguration: talosBootstrapOutputs?.talosConfig,
+      kubecfg,
     },
     controlNodeNatIPs,
   };
