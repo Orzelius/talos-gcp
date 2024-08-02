@@ -4,7 +4,7 @@ import { createNetwork } from './network'
 import { createTalosConfig, MachineConfig } from './talos'
 import * as pulumi from "@pulumi/pulumi";
 import * as talos from "@pulumiverse/talos";
-import { getNatIp, repoRoot } from "./util";
+import { getNatIp, secretsPath } from "./util";
 import { writeFileSync } from "fs";
 import { createGARSVCAcc } from './gcr'
 
@@ -47,12 +47,12 @@ const up = async () => {
   if (nodes.length > 0) {
     talosBootstrapOutputs = bootstrapTaloscluster()
     talosBootstrapOutputs.talosConfig.apply(cfg => {
-      writeFileSync(repoRoot + "talosconfig", cfg)
+      writeFileSync(secretsPath + "talosconfig", cfg)
     })
     const getKubecfgParams = pulumi.all([talosBootstrapOutputs.clientConfiguration, controlNodeNatIPs[0]])
     kubecfg = getKubecfgParams.apply(async ([clinetCfg, nodeIp]) => {
       const kubecfg = await talos.cluster.getKubeconfig({ clientConfiguration: clinetCfg, node: nodeIp })
-      writeFileSync(repoRoot + "kubeconfig", kubecfg.kubeconfigRaw)
+      writeFileSync(secretsPath + "kubeconfig", kubecfg.kubeconfigRaw)
       return kubecfg
     })
   }
