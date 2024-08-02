@@ -5,7 +5,8 @@ import { createTalosConfig, MachineConfig } from './talos'
 import * as pulumi from "@pulumi/pulumi";
 import * as talos from "@pulumiverse/talos";
 import { getNatIp, repoRoot } from "./util";
-import { writeFile, writeFileSync } from "fs";
+import { writeFileSync } from "fs";
+import { createGARSVCAcc } from './gcr'
 
 const clusterConfig = new pulumi.Config("cluster")
 
@@ -55,6 +56,9 @@ const up = async () => {
       return kubecfg
     })
   }
+
+  const gar = createGARSVCAcc()
+
   return {
     bucket: {
       name: bucket.url,
@@ -70,6 +74,10 @@ const up = async () => {
       kubecfg,
     },
     controlNodeNatIPs,
+    artifactsRegistry: {
+      id: gar.registry.id,
+      svcAcc: gar.svcAcc.accountId,
+    },
   };
 }
 
