@@ -19,7 +19,8 @@ export function createGARSVCAcc() {
     serviceAccountId: svcAcc.id,
     publicKeyType: "TYPE_X509_PEM_FILE",
   });
-  key.privateKey.apply(data => writeFileSync(secretsPath + "gar-access-key", data))
+
+  key.privateKey.apply(data => writeFileSync(secretsPath + "gar-access-key", Buffer.from(data, 'base64')))
 
   return { svcAcc, registry, svcAccWriterRoleBinding }
 }
