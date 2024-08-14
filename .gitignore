@@ -6,3 +6,5 @@ talosconfig
 kubeconfig
 
 secrets/**
+
+notes.sh
