@@ -5,9 +5,11 @@ import { secretsPath } from "./util";
 
 // Create a service account for the google artifacts registry
 export function createGARSVCAcc() {
-  const registry = gcp.container.getRegistryRepositoryOutput({
-    region: "EU"
-  })
+  const repo = new gcp.artifactregistry.Repository("docker-repo", {
+    location: gcp.config.region!,
+    repositoryId: gcp.config.project!,
+    format: "DOCKER",
+});
   const svcAcc = new gcp.serviceaccount.Account("gar-access", { accountId: "garaccess" })
 
   const svcAccWriterRoleBinding = new gcp.projects.IAMBinding("gar-write-access", {
@@ -22,5 +24,5 @@ export function createGARSVCAcc() {
 
   key.privateKey.apply(data => writeFileSync(secretsPath + "gar-access-key", Buffer.from(data, 'base64')))
 
-  return { svcAcc, registry, svcAccWriterRoleBinding }
+  return { svcAcc, repo, svcAccWriterRoleBinding }
 }

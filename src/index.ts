@@ -74,8 +74,9 @@ const up = async () => {
       kubecfg,
     },
     controlNodeNatIPs,
-    artifactsRegistry: {
-      id: gar.registry.id,
+    dockerRegistry: {
+      id: gar.repo.id,
+      region: gar.repo.location,
       svcAcc: gar.svcAcc.accountId,
     },
   };
