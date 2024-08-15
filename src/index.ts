@@ -77,6 +77,7 @@ const up = async () => {
     dockerRegistry: {
       id: gar.repo.id,
       region: gar.repo.location,
+      hostname: gar.repo.location.apply(l => l  + "-docker.pkg.dev"),
       svcAcc: gar.svcAcc.accountId,
     },
   };
