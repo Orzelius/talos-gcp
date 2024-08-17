@@ -104,5 +104,13 @@ function createFirewallRules(network: pulumi.Output<string>, controlTag: string)
     sourceRanges: ["0.0.0.0/0"],
     targetTags: [controlTag],
   });
-  return { talosctlFirewall, controlplaneFirewall, httpFirewall };
+  const allowInternal = new gcp.compute.Firewall("allow-internal", {
+    network,
+    allows: [{
+      protocol: "tcp",
+      ports: ["0-65535"],
+    }],
+    sourceRanges: ["10.0.1.0/24"],
+  });
+  return { talosctlFirewall, controlplaneFirewall, httpFirewall, allowInternal };
 }
