@@ -20,11 +20,11 @@ export function createNetwork(controlTag: string) {
     autoCreateSubnetworks: false,
   });
   const subnet = new gcp.compute.Subnetwork("talos-subnet", {
-    ipCidrRange: "10.0.1.0/24",
+    ipCidrRange: "10.0.0.0/8",
     network: network.id,
   });
 
-  const { talosctlFirewall, controlplaneFirewall, httpFirewall } = createFirewallRules(network.selfLink, controlTag);
+  const firewallRules = createFirewallRules(network.selfLink, controlTag);
 
   const instanceGroup = new gcp.compute.InstanceGroup("talos-ig", {
     namedPorts: [tcpPort, httpPort],
@@ -66,9 +66,7 @@ export function createNetwork(controlTag: string) {
       targetTCPProxy,
       LoadBalancerIP,
       tcp443FwdRule,
-      talosctlFirewall,
-      controlplaneFirewall,
-      httpFirewall,
+      firewallRules,
       network,
       subnet
     }
@@ -104,13 +102,21 @@ function createFirewallRules(network: pulumi.Output<string>, controlTag: string)
     sourceRanges: ["0.0.0.0/0"],
     targetTags: [controlTag],
   });
-  const allowInternal = new gcp.compute.Firewall("allow-internal", {
+  const allowInternalTcp = new gcp.compute.Firewall("allow-internal-tcp", {
     network,
     allows: [{
       protocol: "tcp",
       ports: ["0-65535"],
     }],
-    sourceRanges: ["10.0.1.0/24"],
+    sourceRanges: ["10.0.0.0/8"],
   });
-  return { talosctlFirewall, controlplaneFirewall, httpFirewall, allowInternal };
+  const allowInternalUdp = new gcp.compute.Firewall("allow-internal-udp", {
+    network,
+    allows: [{
+      protocol: "udp",
+      ports: ["0-65535"],
+    }],
+    sourceRanges: ["10.0.0.0/8"],
+  });
+  return { talosctlFirewall, controlplaneFirewall, httpFirewall, allowInternalTcp, allowInternalUdp };
 }
