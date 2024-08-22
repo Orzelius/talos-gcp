@@ -20,7 +20,7 @@ const up = async () => {
   const workerMachineTag = "worker"
   const network = createNetwork(controlMachineTag)
 
-  const clusterEndpoint = network.resources.tcp443FwdRule.ipAddress.apply(v => `https://${v}:443`)
+  const clusterEndpoint = network.resources.k8sAapiFwdRule.ipAddress.apply(v => `https://${v}:` + network.k8sAapiTCPPort.port)
   const talosMachineCfg = createTalosConfig(clusterEndpoint, clusterConfig.require("name"));
 
   const nodes = createCompute(image.talosImage.name, controlMachineTag, workerMachineTag, talosMachineCfg, network);
@@ -64,8 +64,7 @@ const up = async () => {
       name: bucket.url,
     },
     network: {
-      lbIp: network.resources.LoadBalancerIP.address,
-      lbPubIp: network.resources.tcp443FwdRule.ipAddress,
+      k8sAapiFwdRuleIP: network.resources.k8sAapiFwdRule.ipAddress,
       clusterEndpoint,
     },
     clusterCfg: {
@@ -130,7 +129,7 @@ function createCompute(
       instance: n.inst.name,
       instanceGroup: network.resources.instanceGroup.name,
       zone: gcp.config.zone
-    }, { dependsOn: [network.resources.tcp443FwdRule] })
+    }, { dependsOn: [network.resources.k8sAapiFwdRule] })
   );
 
   return nodes

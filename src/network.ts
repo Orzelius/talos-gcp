@@ -1,7 +1,7 @@
 import * as gcp from "@pulumi/gcp";
 import * as pulumi from "@pulumi/pulumi";
 
-const tcpPort = {
+const k8sAapiTCPPort = {
   name: "tcp6443",
   port: 6443 // Kubernetes API server port
 }
@@ -27,17 +27,17 @@ export function createNetwork(controlTag: string) {
   const firewallRules = createFirewallRules(network.selfLink, controlTag);
 
   const instanceGroup = new gcp.compute.InstanceGroup("talos-ig", {
-    namedPorts: [tcpPort, httpPort],
+    namedPorts: [k8sAapiTCPPort, httpPort],
     network: network.id,
   })
 
   const healthCheck = new gcp.compute.HealthCheck("talos-hc", {
     logConfig: { enable: true },
-    tcpHealthCheck: { port: tcpPort.port }
+    tcpHealthCheck: { port: k8sAapiTCPPort.port }
   })
 
   const backendServiceTCP = new gcp.compute.BackendService("talos-be-tcp", {
-    portName: tcpPort.name,
+    portName: k8sAapiTCPPort.name,
     timeoutSec: 300,
     healthChecks: healthCheck.selfLink,
     logConfig: { enable: true },
@@ -45,27 +45,27 @@ export function createNetwork(controlTag: string) {
     backends: [{ group: instanceGroup.selfLink }]
   })
 
-  const targetTCPProxy = new gcp.compute.TargetTCPProxy("talos-tcp-proxy", {
+  const k8sAapiTargetTCPProxy = new gcp.compute.TargetTCPProxy("talos-tcp-proxy", {
     backendService: backendServiceTCP.name,
   })
 
-  const LoadBalancerIP = new gcp.compute.GlobalAddress("talos-lb-ip")
+  const k8sApiServerPublicIP = new gcp.compute.GlobalAddress("talos-lb-ip")
 
-  const tcp443FwdRule = new gcp.compute.GlobalForwardingRule("talos-fwd-rule", {
-    portRange: "443",
-    ipAddress: LoadBalancerIP.address,
-    target: targetTCPProxy.selfLink
+  const k8sAapiFwdRule = new gcp.compute.GlobalForwardingRule("talos-fwd-rule", {
+    portRange: k8sAapiTCPPort.port.toString(),
+    ipAddress: k8sApiServerPublicIP.address,
+    target: k8sAapiTargetTCPProxy.selfLink
   })
 
   return {
-    tcpPort,
+    k8sAapiTCPPort,
     resources: {
       instanceGroup,
       healthCheck,
-      backendService: backendServiceTCP,
-      targetTCPProxy,
-      LoadBalancerIP,
-      tcp443FwdRule,
+      backendServiceTCP,
+      k8sAapiTargetTCPProxy,
+      k8sApiServerPublicIP,
+      k8sAapiFwdRule,
       firewallRules,
       network,
       subnet
@@ -78,7 +78,7 @@ function createFirewallRules(network: pulumi.Output<string>, controlTag: string)
     network,
     allows: [{
       protocol: "tcp",
-      ports: [tcpPort.port.toString()],
+      ports: [k8sAapiTCPPort.port.toString()],
     }],
     // gcp lb ranges
     sourceRanges: ["130.211.0.0/22", "35.191.0.0/16"],
