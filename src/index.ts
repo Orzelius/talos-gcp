@@ -9,6 +9,7 @@ import { writeFileSync } from "fs";
 import { createGARSVCAcc } from './gcr'
 
 const clusterConfig = new pulumi.Config("cluster")
+const baseConfig = new pulumi.Config()
 
 const up = async () => {
   const bucket = new gcp.storage.Bucket("talos", {
@@ -18,9 +19,9 @@ const up = async () => {
   const image = await ensureTalosImageAsset(bucket);
   const controlMachineTag = "controlplane"
   const workerMachineTag = "worker"
-  const network = createNetwork(controlMachineTag)
+  const network = createNetwork(controlMachineTag, baseConfig.require("domain"), clusterConfig.require("nodeportHttp"))
 
-  const clusterEndpoint = network.resources.k8sAapiFwdRule.ipAddress.apply(v => `https://${v}:` + network.k8sAapiTCPPort.port)
+  const clusterEndpoint = network.resources.pubIp.address.apply(v => `https://${v}:` + network.k8sAapiTCPPort.port)
   const talosMachineCfg = createTalosConfig(clusterEndpoint, clusterConfig.require("name"));
 
   const nodes = createCompute(image.talosImage.name, controlMachineTag, workerMachineTag, talosMachineCfg, network);
@@ -64,8 +65,9 @@ const up = async () => {
       name: bucket.url,
     },
     network: {
-      k8sAapiFwdRuleIP: network.resources.k8sAapiFwdRule.ipAddress,
-      clusterEndpoint,
+      clusterIP: network.resources.pubIp.address,
+      k8sClusterEndpoint: clusterEndpoint,
+      domain: baseConfig.require("domain")
     },
     clusterCfg: {
       clusterConfig,
@@ -129,7 +131,7 @@ function createCompute(
       instance: n.inst.name,
       instanceGroup: network.resources.instanceGroup.name,
       zone: gcp.config.zone
-    }, { dependsOn: [network.resources.k8sAapiFwdRule] })
+    }, { dependsOn: [network.resources.k8sApiNetwork.fwdRule] })
   );
 
   return nodes

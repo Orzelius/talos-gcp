@@ -8,4 +8,7 @@ config:
   cluster:workers: 1
   cluster:controls: 1
   cluster:machineType: e2-medium
+  cluster:nodeportHttp: 31120
+
+  domain: gcp-playground.com
  
