@@ -66,11 +66,27 @@ export function createNetwork(controlTag: string, domainName: string, nodeportHt
     protocol: "TCP",
     backends: [{ group: instanceGroup.selfLink }]
   })
-  const k8sPublicTCPProxy = new gcp.compute.TargetTCPProxy("public-tcp-proxy", {
+  const dnsAuth = new gcp.certificatemanager.DnsAuthorization("talos-dnsauth", {
+    domain: domainName
+  })
+  const sslCert = new gcp.certificatemanager.Certificate("talos-certmanager-ssl-cert", {
+    managed: {
+      domains: [domainName, "*." + domainName],
+      dnsAuthorizations: [dnsAuth.id]
+    }
+  })
+  const certMap = new gcp.certificatemanager.CertificateMap("cert-map", {})
+  const certMapEntry = new gcp.certificatemanager.CertificateMapEntry("cert-map-entry", {
+    map: certMap.name,
+    certificates: [sslCert.id],
+    hostname: domainName,
+  })
+  const k8sPublicTCPProxy = new gcp.compute.TargetSSLProxy("public-tcp-proxy", {
     backendService: backendServicePublicTCP.name,
+    certificateMap: pulumi.interpolate`//certificatemanager.googleapis.com/${certMap.id}`,
   })
   const k8sPublicFwdRule = new gcp.compute.GlobalForwardingRule("public-tcp-fwd-rule", {
-    portRange: httpPort.port.toString(),
+    portRange: httpsPort.port.toString(),
     ipAddress: pubIp.address,
     target: k8sPublicTCPProxy.selfLink,
     loadBalancingScheme: "EXTERNAL"
@@ -90,19 +106,19 @@ export function createNetwork(controlTag: string, domainName: string, nodeportHt
     ttl: 50,
     rrdatas: [pubIp.address]
   })
-  const aRecordWWW = new gcp.dns.RecordSet("talos-dns-a-record-www", {
-    managedZone: dnsZone.name,
-    name: pulumi.interpolate`www.${dnsZone.dnsName}`,
-    type: "A",
-    ttl: 50,
-    rrdatas: [pubIp.address]
-  })
-  const aRecordWildcard= new gcp.dns.RecordSet("talos-dns-a-record-wildcard", {
+  const aRecordWildcard = new gcp.dns.RecordSet("talos-dns-auth-record", {
     managedZone: dnsZone.name,
     name: pulumi.interpolate`*.${dnsZone.dnsName}`,
     type: "A",
     ttl: 50,
     rrdatas: [pubIp.address]
+  })
+  const CnameDnsAuthRecord = new gcp.dns.RecordSet("talos-dns-a-record-wildcard", {
+    managedZone: dnsZone.name,
+    name: dnsAuth.dnsResourceRecords[0].name,
+    type: dnsAuth.dnsResourceRecords[0].type,
+    ttl: 50,
+    rrdatas: [dnsAuth.dnsResourceRecords[0].data]
   })
 
   return {
@@ -126,9 +142,15 @@ export function createNetwork(controlTag: string, domainName: string, nodeportHt
       subnet,
       dns: {
         aRecordRoot,
-        aRecordWWW,
         aRecordWildcard,
         dnsZone,
+      },
+      tls: {
+        CnameDnsAuthRecord,
+        certMap,
+        certMapEntry,
+        sslCert,
+        dnsAuth,
       }
     }
   }
