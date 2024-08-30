@@ -66,20 +66,39 @@ export function createNetwork(controlTag: string, domainName: string, nodeportHt
     protocol: "TCP",
     backends: [{ group: instanceGroup.selfLink }]
   })
-  const dnsAuth = new gcp.certificatemanager.DnsAuthorization("talos-dnsauth", {
+  const subDom = "c." + domainName
+  const dnsAuthRoot = new gcp.certificatemanager.DnsAuthorization("dnsauthz-root", {
     domain: domainName
   })
-  const sslCert = new gcp.certificatemanager.Certificate("talos-certmanager-ssl-cert", {
+  const dnsAuthSub = new gcp.certificatemanager.DnsAuthorization("dnsauthz-sub", {
+    domain: subDom
+  })
+  const sslCert = new gcp.certificatemanager.Certificate("certmanager-ssl-cert", {
     managed: {
-      domains: [domainName, "*." + domainName],
-      dnsAuthorizations: [dnsAuth.id]
+      domains: [subDom, "*." + subDom, domainName, "*." + domainName],
+      dnsAuthorizations: [dnsAuthSub.id, dnsAuthRoot.id]
     }
   })
   const certMap = new gcp.certificatemanager.CertificateMap("cert-map", {})
-  const certMapEntry = new gcp.certificatemanager.CertificateMapEntry("cert-map-entry", {
+  const certMapEntrySub = new gcp.certificatemanager.CertificateMapEntry("cert-map-entry-sub", {
+    map: certMap.name,
+    certificates: [sslCert.id],
+    hostname: subDom,
+  })
+  const certMapEntryRoot = new gcp.certificatemanager.CertificateMapEntry("cert-map-entry-root", {
     map: certMap.name,
     certificates: [sslCert.id],
     hostname: domainName,
+  })
+  const certMapEntrySubWild = new gcp.certificatemanager.CertificateMapEntry("cert-map-entry-sub-wild", {
+    map: certMap.name,
+    certificates: [sslCert.id],
+    hostname: "*." + subDom,
+  })
+  const certMapEntryRootWild = new gcp.certificatemanager.CertificateMapEntry("cert-map-entry-root-wild", {
+    map: certMap.name,
+    certificates: [sslCert.id],
+    hostname: "*." + domainName,
   })
   const k8sPublicTCPProxy = new gcp.compute.TargetSSLProxy("public-tcp-proxy", {
     backendService: backendServicePublicTCP.name,
@@ -99,26 +118,47 @@ export function createNetwork(controlTag: string, domainName: string, nodeportHt
       state: "off"
     }
   })
-  const aRecordRoot = new gcp.dns.RecordSet("talos-dns-a-record-root", {
+  const aRecordRoot = new gcp.dns.RecordSet("a-root", {
     managedZone: dnsZone.name,
     name: dnsZone.dnsName,
     type: "A",
     ttl: 50,
     rrdatas: [pubIp.address]
   })
-  const aRecordWildcard = new gcp.dns.RecordSet("talos-dns-auth-record", {
+  const aRecordRootWildcard = new gcp.dns.RecordSet("a-root-wildcard", {
     managedZone: dnsZone.name,
     name: pulumi.interpolate`*.${dnsZone.dnsName}`,
     type: "A",
     ttl: 50,
     rrdatas: [pubIp.address]
   })
-  const CnameDnsAuthRecord = new gcp.dns.RecordSet("talos-dns-a-record-wildcard", {
+  const aRecordSubWildcard = new gcp.dns.RecordSet("sub-wildcard", {
     managedZone: dnsZone.name,
-    name: dnsAuth.dnsResourceRecords[0].name,
-    type: dnsAuth.dnsResourceRecords[0].type,
+    name: pulumi.interpolate`*.c.${dnsZone.dnsName}`,
+    type: "A",
     ttl: 50,
-    rrdatas: [dnsAuth.dnsResourceRecords[0].data]
+    rrdatas: [pubIp.address]
+  })
+  const aRecordSub = new gcp.dns.RecordSet("dot-c", {
+    managedZone: dnsZone.name,
+    name: pulumi.interpolate`c.${dnsZone.dnsName}`,
+    type: "A",
+    ttl: 50,
+    rrdatas: [pubIp.address]
+  })
+  const CnameDnsAuthRecordSub = new gcp.dns.RecordSet("sub-dns-authz", {
+    managedZone: dnsZone.name,
+    name: dnsAuthSub.dnsResourceRecords[0].name,
+    type: dnsAuthSub.dnsResourceRecords[0].type,
+    ttl: 50,
+    rrdatas: [dnsAuthSub.dnsResourceRecords[0].data]
+  })
+  const CnameDnsAuthRecordRoot = new gcp.dns.RecordSet("dns-authz-root", {
+    managedZone: dnsZone.name,
+    name: dnsAuthRoot.dnsResourceRecords[0].name,
+    type: dnsAuthRoot.dnsResourceRecords[0].type,
+    ttl: 50,
+    rrdatas: [dnsAuthRoot.dnsResourceRecords[0].data]
   })
 
   return {
@@ -142,15 +182,22 @@ export function createNetwork(controlTag: string, domainName: string, nodeportHt
       subnet,
       dns: {
         aRecordRoot,
-        aRecordWildcard,
+        aRecordRootWildcard,
+        aRecordSubWildcard,
+        aRecordSub,
         dnsZone,
       },
       tls: {
-        CnameDnsAuthRecord,
+        CnameDnsAuthRecordSub,
+        CnameDnsAuthRecordRoot,
         certMap,
-        certMapEntry,
         sslCert,
-        dnsAuth,
+        dnsAuthRoot,
+        dnsAuthSub,
+        certMapEntryRoot,
+        certMapEntryRootWild,
+        certMapEntrySub,
+        certMapEntrySubWild,
       }
     }
   }
